@@ -933,70 +933,6 @@ function askAI(topic) {
 })();
 
 /* ============================================================
-   FEATURE #4 — GITHUB ACTIVITY HEATMAP
-   ============================================================ */
-(function initGithubHeatmap() {
-  const container = document.getElementById('ghHeatmap');
-  const countEl   = document.getElementById('ghContribCount');
-  if (!container) return;
-
-  // Generate realistic-looking synthetic data (53 weeks × 7 days)
-  // Falls back to this since GitHub's graph API requires auth
-  const WEEKS = 53;
-  const seed  = 42;
-  function pseudoRand(n) {
-    const x = Math.sin(n + seed) * 10000;
-    return x - Math.floor(x);
-  }
-
-  let total = 0;
-  for (let w = 0; w < WEEKS; w++) {
-    const col = document.createElement('div');
-    col.className = 'gh-col';
-    for (let d = 0; d < 7; d++) {
-      const cell  = document.createElement('div');
-      cell.className = 'gh-cell';
-      const r = pseudoRand(w * 7 + d);
-      // More activity in recent weeks (right side)
-      const recencyBoost = w / WEEKS;
-      const activity = r + recencyBoost * 0.3;
-      let level = 0;
-      if (activity > 0.82) level = 4;
-      else if (activity > 0.68) level = 3;
-      else if (activity > 0.54) level = 2;
-      else if (activity > 0.42) level = 1;
-      cell.dataset.level = level;
-      total += level > 0 ? level : 0;
-      // Date tooltip
-      const date = new Date();
-      date.setDate(date.getDate() - (WEEKS - w) * 7 + d);
-      cell.title = `${date.toDateString()} · ${level > 0 ? level + ' contribution' + (level > 1 ? 's' : '') : 'No contributions'}`;
-      col.appendChild(cell);
-    }
-    container.appendChild(col);
-  }
-
-  // Animate cells in on scroll
-  const wrap = document.querySelector('.gh-heatmap-wrap');
-  const obs  = new IntersectionObserver(entries => {
-    if (!entries[0].isIntersecting) return;
-    const cells = container.querySelectorAll('.gh-cell');
-    cells.forEach((cell, i) => {
-      setTimeout(() => {
-        cell.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
-        cell.style.opacity = '1';
-      }, i * 0.8);
-    });
-    if (countEl) countEl.textContent = `${total} contributions in the last year`;
-    obs.disconnect();
-  }, { threshold: 0.2 });
-  if (wrap) {
-    container.querySelectorAll('.gh-cell').forEach(c => { c.style.opacity = '0'; });
-    obs.observe(wrap);
-  }
-})();
-
-/* ============================================================
    FEATURE #2 — SKILL RADAR CHART
    ============================================================ */
 (function initRadar() {
@@ -1886,25 +1822,6 @@ function launchConfetti() {
     }
     return origResponse ? origResponse(msg) : '';
   };
-})();
-
-/* ---- #11 GITHUB STREAK ---- */
-(function initGHStreak() {
-  // Attach to existing heatmap footer
-  const footer = document.querySelector('.gh-heatmap-footer');
-  if (!footer) return;
-  // Generate plausible streak from same synthetic data as heatmap
-  const streak = { current: 7, longest: 23 };
-  const streakEl = document.createElement('div');
-  streakEl.style.cssText = 'display:flex;gap:1rem;margin-top:0.5rem;width:100%;';
-  streakEl.innerHTML = `
-    <div style="font-family:var(--mono);font-size:0.72rem;color:var(--text3)">
-      🔥 <span style="color:var(--orange);font-weight:700">${streak.current}</span> day streak
-    </div>
-    <div style="font-family:var(--mono);font-size:0.72rem;color:var(--text3)">
-      ⚡ Longest: <span style="color:var(--accent2);font-weight:700">${streak.longest}</span> days
-    </div>`;
-  footer.appendChild(streakEl);
 })();
 
 /* ---- #2 SENTIMENT-AWARE CHAT ---- */
@@ -3270,48 +3187,4 @@ function toggleLinkedIn() {
     : '<i class="fas fa-chevron-up"></i> Hide';
 }
 
-/* ---- #18 GITHUB REAL HEATMAP (public API, no auth) ---- */
-(function initRealGHHeatmap() {
-  // GitHub contribution graph API via third-party proxy (no auth needed)
-  const container = document.getElementById('ghHeatmap');
-  const countEl   = document.getElementById('ghContribCount');
-  if (!container) return;
 
-  // Try to fetch real data from GitHub's public contribution API
-  fetch('https://github-contributions-api.jogruber.de/v4/NSP101?y=last')
-    .then(r => r.json())
-    .then(data => {
-      if (!data?.contributions) return; // fallback to synthetic data already rendered
-      container.innerHTML = '';
-      let total = 0;
-
-      // Group by week
-      const weeks = [];
-      let week = [];
-      data.contributions.forEach((day, i) => {
-        week.push(day);
-        if (week.length === 7 || i === data.contributions.length - 1) {
-          weeks.push(week);
-          week = [];
-        }
-      });
-
-      weeks.forEach(w => {
-        const col = document.createElement('div');
-        col.className = 'gh-col';
-        w.forEach(day => {
-          const cell = document.createElement('div');
-          cell.className = 'gh-cell';
-          const c = day.count || 0;
-          cell.dataset.level = c === 0 ? 0 : c < 3 ? 1 : c < 6 ? 2 : c < 10 ? 3 : 4;
-          total += c;
-          cell.title = `${day.date} · ${c} contribution${c !== 1 ? 's' : ''}`;
-          col.appendChild(cell);
-        });
-        container.appendChild(col);
-      });
-
-      if (countEl) countEl.textContent = `${total} contributions in the last year (live from GitHub)`;
-    })
-    .catch(() => {}); // silently fall back to existing synthetic data
-})();
